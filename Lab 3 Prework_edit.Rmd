@@ -67,6 +67,8 @@ From the above, the distribution of most of the numeric variables presented are 
 
 Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribis, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
 
+We create a correlation matrix to get a high level overview of the correlations between variables.
+
 ### Removed a few of the columns        --- Comment
 ```{r}
 #corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])  ### explored removing the urban, west and central variables due to low variability for a correlation plot
@@ -111,13 +113,9 @@ ggplot(crime, aes(x=density, y =crmrte)) +
 
 ### Examining Income-related variables
 
-Next, 
-### c
-we notice from the scatterplot matrix that each wage variable seems to be highly correlated with each other, 
+Next, we notice from the scatterplot matrix that each wage variable seems to be highly correlated with each other, and there is some positive correlation with the crime rate. We investigate these closer to see any opportunities for transformation.
 
-and there is some positive correlation with the crime rate. We investigate these closer to see any opportunities for transformation.
-
-### The outlier in wser affects the x-axis squashing the values for it to be accomodated. Run the same graph without wser, and it is clearer
+### The outlier in wser affects the x-axis squashing the values for it to be accomodated. Run the same graph without wser, and it is clearer -- NK: Good point Brian, Added that context into our text below
 
 ```{r}
 crime_wage <- crime %>% 
@@ -131,6 +129,9 @@ ggplot(crime_wage, aes(x=wkly_wage, y=crmrte)) +
   ylab("Crime Rate")
 #+ theme(strip.text.x = element_text(margin = margin(2,0,2,0, "cm")))
 ```
+
+Here, we see that the outlier in wser affects the x-axis is distorting the x axes for the other facets. We run the same graph without wser for a clearer visual of the other wage variables.
+
 ```{r}
 crime_wage <- crime %>% 
   select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wsta, wloc) %>% 
@@ -144,13 +145,14 @@ ggplot(crime_wage, aes(x=wkly_wage, y=crmrte)) +
 #+ theme(strip.text.x = element_text(margin = margin(2,0,2,0, "cm")))
 ```
 
-### Only wtrd, wmfg, wfed, wsta(a little), wloc(a little) seem to have a good amount of correlation with. As shown below, wser seems to havea very slight correlation with crime rate (log used because of the outlier)     ----- Comment
+Many of the wage variables have a slight positive relationship with crime rate. The variables wtrd, wmfg, wfed, and (to a lesser degree) wsta and wloc seem to have a good amount of correlation with crime rate. As shown below, wser seems to have a very slight correlation with crime rate (log used because of the outlier)     
+----- Comment NK: I liked this comment Brian made and it made it part of the main analysis!
 
 ```{r}
 ggplot(crime, aes(x=log(wser), y=crmrte)) + geom_point()
 ```
 
-From above, we see that all of the wages have a positive relationship with crime rate. This explains the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims. 
+These relationships explain the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims. 
 
 The one point that stands out is the outlier in wser (service industry wage) when plotted against the crime rate. This reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
 
@@ -189,7 +191,7 @@ ggplot(crime, aes(x=taxpc, y =crmrte)) +
 
 ### Investigating demographic variables
 
-We notice a variable pctmin80, which is the percentage of minority groups in the populaiton. We predict that neighborhoods with higher percent minorities had lower tax revenue per capita, as socio-economic barriers often forced minority groups to take lower paying roles, and racism factors often implied that minority groups would be paid less for the same jobs as white coworkers. 
+We notice a variable pctmin80, which is the percentage of minority groups in the population. We predict that neighborhoods with higher percent minorities had lower tax revenue per capita, as socio-economic barriers often forced minority groups to take lower paying roles, and racism factors often implied that minority groups would be paid less for the same jobs as white coworkers. 
 
 ```{r}
 ggplot(crime, aes(x=pctmin80, y =taxpc)) + 
@@ -278,7 +280,7 @@ crm rate as a function of Density, all the wages, probability of arrest, pct you
 ```{r, results="asis"}
 stargazer(model1,model2,model3, model4
           , type ="text"
-          , column.labels   = c("Specification 1", "Specification 2 ", "Specification 3")
+          , column.labels   = c("Specification 1", "Specification 2 ", "Specification 3", "Specification 4")
           , report = "vc", title = "Model Summaries"
           , keep.stat = c("rsq","adj.rsq")
           , omit.table.layout = "n")
@@ -292,13 +294,13 @@ There are several omittied variables that would be valuable in conducting this a
 
 2. Income gap. There are several variables that point to the affluence of a region, but we are interested in seeing the percentage of upper/middle class individuals compared to percentage of lower class. We predict that the difference in these percents would be a better indicator of crime rate. Currently, we only have the wage within each sector (it is unclear whether this wage is a median or a mean or some other aggregated measure). There also could be omitted sectors, and we don't know the relative proportion of individuals in each sector
 
-### Added three omitted variables, read through           -Comment
+### Added three omitted variables, read through           -Comment NK: These look great Brian!
 3.Police bias. Bias among police officers in certain areas may contribute to the crime rate because of spurious arrests and convictions. This may be difficult to measure directly
 
 4. Crime rate in neighbouring counties. Proximity to other areas where crime is high may have an influence on the crime rate in a particular county due to spillovers of activity.
 
 5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure)
 
+# Conclusion     -Comment NK: Added this in
 
 
-# Conclusion
