@@ -1,0 +1,304 @@
+---
+title: "Lab 3 Prework"
+author: "Neha Kumar"
+date: "11/14/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=7, fig.height=3.5, fig.align='center')
+library(purrr)
+library(car)
+library(ggplot2)
+library(maps)
+library(Hmisc)
+library(stringr)
+library(reshape2)
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(lubridate)
+library(zoo)
+library(corrplot)
+library(stargazer)
+setwd('/Users/Elizabeth/Desktop/UC Berkeley/W203_Statistics/Labs/Lab 3')
+```
+
+## Introduction
+
+The motivation for this analysis is to determine the factors that lead to crime rate in North Carolina counties in 1980. We are assuming the role of data scientists for a political campaign around the same era within North Carolina to determine methods that can be employed to reduce the crime rate. Note, that this requires our analysis to look for causal variables so we can provide concrete and actionable resolutions.
+
+## Initial EDA
+
+```{r}
+crime = read.csv("crime_v2.csv", header = TRUE)
+str(crime)
+```
+Here, we see something interesting. prbconv is a factor due to a rogue ` character being added to the bottom of the file. When we view the dataframe, we actually see that this rogue tick mark has also introduced 6 null values in the file. We take steps to remove these records from the file to clean our dataset. 
+
+```{r}
+crime <- crime[!is.na(as.numeric(as.character(crime$prbconv))),]
+#crime$prbconv = as.numeric(crime$prbconv) / 100
+crime$prbconv <- as.numeric(as.character(crime$prbconv)) ### used the same method used above, when removing the NAs. The values obtained match those in the csv file
+#crime=subset(crime, !is.na(crmrte))  #### all NAs already removed in the first step
+str(crime)
+summary(crime)
+```
+### Included the observation that probconv now also has values above 1, rode the same explanation        ---- Comment
+Something we notice here is that both the probability of arrest and probability of conviction have at least 1 record that is over 1. Thinking through this further, this is not impossible. Multiple people can participate in a crime together, leading to multiple arrests and/or convictions per criminal offense and so this anomaly may be a product of the operationalization of the particular variables. Thus, we will not discard this variable.
+
+Our data file is now clean and ready for further analysis. 
+
+### Trying to figure out how to increase the height of these facets        - Comment
+
+## Model Building Process
+
+```{r}
+crime %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
+
+From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of prbconv, pctymyle and polpc that stand out as non-normal.  We now take a look at a scatterplot matrix to examine the bivariate relationships embedded within this dataset.
+
+Suspected collinearity between wage variables and tax revenue per capita. Also the more tax per capita, the more money there is to spend on police forces, so police per capita is suspected to be related to tax revenue per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribis, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
+
+### Removed a few of the columns        --- Comment
+```{r}
+#corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])  ### explored removing the urban, west and central variables due to low variability for a correlation plot
+corr_crime = cor(crime[, c(-1,-2,-11)]) ## removed the county and year columns
+corrplot(corr_crime, method = "ellipse")
+```
+
+### Examining density
+
+The first relationships we decide to investigate further are the density variables against the binary urban, west and central variables. From the correlation matrix and our intuition, we expect that urban areas are more dense. 
+
+```{r}
+crime %>%
+  ggplot(aes(density)) +
+    facet_wrap(~ urban) +
+    geom_histogram() +
+    ggtitle("Non Urban (0) vs Urban Density (1)")
+
+crime %>%
+  ggplot(aes(density)) +
+    facet_wrap(~ west) +
+    geom_histogram() + 
+    ggtitle("Non West (0) vs West Density (1)")
+
+crime %>%
+  ggplot(aes(density)) +
+    facet_wrap(~ central) +
+    geom_histogram() + 
+    ggtitle("Non Central (0) vs Central Density (1)")
+```
+
+Urban areas tend to have higher densities, as expected. Thus, the density and urban variables are collinear. The other 2 variables don't show as strong of a relationship with density, and from the scatterplot matrix are not particularly correlated with crime rate. Thus, these variables will likely not be included in our first model specification. 
+
+Taking a closer look at crime rate against population density, this does look like a promising variable to include in the first specification.
+```{r}
+ggplot(crime, aes(x=density, y =crmrte)) + 
+  geom_point() + 
+  ggtitle("Crime Rate against Population Density") + 
+  xlab("Density") + 
+  ylab("Crime Rate")
+```
+
+### Examining Income-related variables
+
+Next, 
+### c
+we notice from the scatterplot matrix that each wage variable seems to be highly correlated with each other, 
+
+and there is some positive correlation with the crime rate. We investigate these closer to see any opportunities for transformation.
+
+### The outlier in wser affects the x-axis squashing the values for it to be accomodated. Run the same graph without wser, and it is clearer
+
+```{r}
+crime_wage <- crime %>% 
+  select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wser, wsta, wloc) %>% 
+  gather(sector, wkly_wage, -crmrte)
+ggplot(crime_wage, aes(x=wkly_wage, y=crmrte)) + 
+  facet_wrap(~sector) + 
+  geom_point() + 
+  ggtitle("Crime rate against wages across each sector") + 
+  xlab("Weekly Wage") + 
+  ylab("Crime Rate")
+#+ theme(strip.text.x = element_text(margin = margin(2,0,2,0, "cm")))
+```
+```{r}
+crime_wage <- crime %>% 
+  select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wsta, wloc) %>% 
+  gather(sector, wkly_wage, -crmrte)
+ggplot(crime_wage, aes(x=wkly_wage, y=crmrte)) + 
+  facet_wrap(~sector) + 
+  geom_point() + 
+  ggtitle("Crime rate against wages across each sector without wser") + 
+  xlab("Weekly Wage") + 
+  ylab("Crime Rate")
+#+ theme(strip.text.x = element_text(margin = margin(2,0,2,0, "cm")))
+```
+
+### Only wtrd, wmfg, wfed, wsta(a little), wloc(a little) seem to have a good amount of correlation with. As shown below, wser seems to havea very slight correlation with crime rate (log used because of the outlier)     ----- Comment
+
+```{r}
+ggplot(crime, aes(x=log(wser), y=crmrte)) + geom_point()
+```
+
+From above, we see that all of the wages have a positive relationship with crime rate. This explains the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims. 
+
+The one point that stands out is the outlier in wser (service industry wage) when plotted against the crime rate. This reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
+
+Taking a closer look at this outlier:
+
+```{r}
+crime_outlier <- crime %>% filter(wser>2000)
+head(crime_outlier)
+```
+
+
+### Preparing to add something on the corelation of the wage variables, it may need further analysis -- Comment
+
+Interestingly, the tax revenue per capita is lower than what we would expect for such a supposedly affluent county. Further investigation is required here to better understand the exact job market of this population. It is likely that there are only 1 or 2 members of this county who have high paying jobs, driving up wser. In this dataset, we would hope to see a percentage breakdown of workers in each sector. This would allow us to weight each wage parameter accordingly and provide context as to how much of an influence we would expect a sector's wage to have on its crime rate.
+
+Across all the plots, we see that points are clustered along the lower end of the x axis. Therefore, we take the log of the wage parameters. 
+
+```{r}
+ggplot(crime_wage, aes(x=log(wkly_wage), y=crmrte)) + 
+  facet_wrap(~sector) + 
+  geom_point() + 
+  ggtitle("Crime rate against log(wages) across each sector") + 
+  xlab("Log(Weekly Wage)") + 
+  ylab("Crime Rate")
+```
+This distributes the data much more effectively. Note that even though the wage parameters may not make it into the first specification, in the later specifications we will eventually be factoring these variables in. At that time, we will be taking the log of the wages as shown above.
+
+As mentioned above, we note that taxpc is related to the wages of workers in each county, as higher taxes are applied to individuals with a higher income. We notice this in the correlation matrix at the top of this report, where taxpc shows at least a light blue relationship with each of the wage variables individually (this is expected as we anticipate that taxpc is more tightly correlated with a linear combination of these variables). From the correlation matrix, we expect to see the same positive relationship between taxpc and crmrte. Taking a closer look at this relationship, we can verify that this relationship holds.
+```{r}
+ggplot(crime, aes(x=taxpc, y =crmrte)) + 
+  geom_point() + 
+  ggtitle("Crime Rate against Tax Per Capita") + 
+  xlab("Tax Revenue per Capita") + 
+  ylab("Crime Rate")
+```
+
+### Investigating demographic variables
+
+We notice a variable pctmin80, which is the percentage of minority groups in the populaiton. We predict that neighborhoods with higher percent minorities had lower tax revenue per capita, as socio-economic barriers often forced minority groups to take lower paying roles, and racism factors often implied that minority groups would be paid less for the same jobs as white coworkers. 
+
+```{r}
+ggplot(crime, aes(x=pctmin80, y =taxpc)) + 
+  geom_point() + 
+  ggtitle("Percent Minority against Tax Per Capita") + 
+  xlab("Percent Minority") + 
+  ylab("Tax Per Capita")
+```
+Contrary to the above discussion, Tax Revenue per Capita does not seem to be related to the percentage of minorities in a population. 
+
+Now looking at percent young male. This variable is of interest as the perpetrators of crime are often thought to come from this demographic group.
+
+```{r}
+ggplot(crime, aes(x = pctymle, y = crmrte)) + 
+  geom_point() + 
+  ggtitle("Crime Rate against Percentage Young Males") + 
+  xlab("Percent Young Male") + 
+  ylab("Crime Rate")
+```
+
+### The influence of fear - probability of punishment
+
+Now looking at the probabilities associated with arrest, conviction and prison sentence. These 3 probabilites all illustrate the likelihood of being punished for a crime. Therefore, we expect that only one of these parameters is necessary to include in our model to avoid any confounding effects.
+
+```{r}
+crime_prob_punishment <- crime %>% 
+  select(crmrte, prbarr, prbconv, prbpris) %>% 
+  gather(punishment, probability, -crmrte)
+ggplot(crime_prob_punishment, aes(x=probability, y=crmrte)) + 
+  facet_wrap(~punishment) + 
+  geom_point() + 
+  ggtitle("Crime rate against Probability of Arrest, Conviction, and Prison Sentence") + 
+  xlab("Probability") + 
+  ylab("Crime Rate")
+```
+
+As suggested by the correlation matrix and the analysis above, there is a negative relationship between the probability of arrest and conviction with crime rate.
+
+From intuition, police presence can either be positively related with crime (more police are needed in more crime active areas) or they can be negatively related (higher plice presence serves as a deterrant of crime). In the former case, police presence is an outcome variable of crime, and in the latter case, crime is the outcome variable.
+
+```{r}
+ggplot(crime, aes(x = polpc, y = prbarr)) + 
+  geom_point() + 
+  ggtitle("Police Presence's effect on the Probability of Arrest") + 
+  xlab("Police per Capita") + 
+  ylab("Probability of Arrest")
+```
+There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is espcially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. 
+
+We question if more police officers could be a deterrent of crime from occuring in the first place. Thus, let us plot police per capita against the crime rate. 
+
+```{r}
+ggplot(crime, aes(x = polpc, y = crmrte)) + 
+  geom_point() + 
+  ggtitle("Crime Rate against Police Per Capita") + 
+  xlab("Police per Capita") + 
+  ylab("Crime Rate")
+```
+From above, the more police there are the more crime there is, with the exception of the outlier at the bottom right, reflecting an area with high police per capita and low crime. This is the same point as the outlier of the previous graph. Therefore, this one county has a High number of Police with a high likelihood of arreset, and a low crime rate. This likely is an area that is actively cracking down on crime. Overall though, we cannot make any conclusions on whether police presence reduces crime, or whether crime increases police presence. Therefore, this variable will likely not be included as part of our first model specification.
+
+```{r}
+crime_outlier2 <- crime %>% filter(polpc>0.0075)
+head(crime_outlier2)
+```
+
+#### Added a fourth specification          -- Comment
+
+### Bringing our analysis together
+
+```{r}
+model1 <- lm(crmrte ~ taxpc + density + pctymle + prbarr, data = crime)
+model2 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + polpc + pctmin80, data = crime)
+model3 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + 
+               prbpris + avgsen + polpc + pctmin80 + log(wcon) + 
+               log(wtuc) + log(wtrd) + log(wfir) + log(wser) + log(wmfg) + 
+               log(wfed) + log(wsta) + log(wloc) + mix, data = crime)
+
+#### Fourth specification that uses a few of the wage variables that were highly correlated with crime rate
+model4 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + polpc + pctmin80 + log(wtrd) +log(wmfg), data = crime)
+```
+
+# The Regression Table
+
+crm rate as a function of Density, all the wages, probability of arrest, pct young male
+
+```{r, results="asis"}
+stargazer(model1,model2,model3, model4
+          , type ="text"
+          , column.labels   = c("Specification 1", "Specification 2 ", "Specification 3")
+          , report = "vc", title = "Model Summaries"
+          , keep.stat = c("rsq","adj.rsq")
+          , omit.table.layout = "n")
+```
+
+# The Omitted Variables Discussion
+
+There are several omittied variables that would be valuable in conducting this analysis:
+
+1. Severity of crime. Crimes can vary from being petty (jaywalking or parking in a no parking zone) to severe crimes that do warrant arrest, conviction and prison sentences (kidnapping, thefts, sexual violence). Having a parameter that indicates the severity of the crime would help differentiate the varying levels of crime and focus analysis on reducing the likelihood of harsher crimes.
+
+2. Income gap. There are several variables that point to the affluence of a region, but we are interested in seeing the percentage of upper/middle class individuals compared to percentage of lower class. We predict that the difference in these percents would be a better indicator of crime rate. Currently, we only have the wage within each sector (it is unclear whether this wage is a median or a mean or some other aggregated measure). There also could be omitted sectors, and we don't know the relative proportion of individuals in each sector
+
+### Added three omitted variables, read through           -Comment
+3.Police bias. Bias among police officers in certain areas may contribute to the crime rate because of spurious arrests and convictions. This may be difficult to measure directly
+
+4. Crime rate in neighbouring counties. Proximity to other areas where crime is high may have an influence on the crime rate in a particular county due to spillovers of activity.
+
+5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure)
+
+
+
+# Conclusion
