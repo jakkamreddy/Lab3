@@ -1,6 +1,6 @@
 ---
-title: "Lab 3 Prework"
-author: "Neha Kumar"
+title: "Lab 3 DRAFT"
+author: "Siddhartha Jakkamreddy, Neha Kumar, Brian Musisi"
 date: "11/14/2018"
 output: pdf_document
 ---
@@ -22,7 +22,7 @@ library(lubridate)
 library(zoo)
 library(corrplot)
 library(stargazer)
-setwd('/Users/Elizabeth/Desktop/UC Berkeley/W203_Statistics/Labs/Lab 3')
+# setwd('/Users/Elizabeth/Desktop/UC Berkeley/W203_Statistics/Labs/Lab 3')
 ```
 
 ## Introduction
@@ -50,11 +50,11 @@ Something we notice here is that both the probability of arrest and probability 
 
 Our data file is now clean and ready for further analysis. 
 
-### Trying to figure out how to increase the height of these facets        - Comment
+### Trying to figure out how to increase the height of these facets        - Comment NK Done
 
 ## Model Building Process
 
-```{r}
+```{r, fig.width=10,fig.height=11}
 crime %>%
   keep(is.numeric) %>% 
   gather() %>% 
@@ -65,7 +65,7 @@ crime %>%
 
 From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of prbconv, pctymyle and polpc that stand out as non-normal.  We now take a look at a scatterplot matrix to examine the bivariate relationships embedded within this dataset.
 
-Suspected collinearity between wage variables and tax revenue per capita. Also the more tax per capita, the more money there is to spend on police forces, so police per capita is suspected to be related to tax revenue per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribis, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
+Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribis, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
 
 ### Removed a few of the columns        --- Comment
 ```{r}
