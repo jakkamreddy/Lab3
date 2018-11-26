@@ -22,7 +22,6 @@ library(lubridate)
 library(zoo)
 library(corrplot)
 library(stargazer)
-# setwd('/Users/Elizabeth/Desktop/UC Berkeley/W203_Statistics/Labs/Lab 3')
 ```
 
 ## Introduction
@@ -39,18 +38,14 @@ Here, we see something interesting. prbconv is a factor due to a rogue ` charact
 
 ```{r}
 crime <- crime[!is.na(as.numeric(as.character(crime$prbconv))),]
-#crime$prbconv = as.numeric(crime$prbconv) / 100
-crime$prbconv <- as.numeric(as.character(crime$prbconv)) ### used the same method used above, when removing the NAs. The values obtained match those in the csv file
-#crime=subset(crime, !is.na(crmrte))  #### all NAs already removed in the first step
+crime$prbconv <- as.numeric(as.character(crime$prbconv))
 str(crime)
 summary(crime)
 ```
-### Included the observation that probconv now also has values above 1, rode the same explanation        ---- Comment
+
 Something we notice here is that both the probability of arrest and probability of conviction have at least 1 record that is over 1. Thinking through this further, this is not impossible. Multiple people can participate in a crime together, leading to multiple arrests and/or convictions per criminal offense and so this anomaly may be a product of the operationalization of the particular variables. Thus, we will not discard this variable.
 
 Our data file is now clean and ready for further analysis. 
-
-### Trying to figure out how to increase the height of these facets        - Comment NK Done
 
 ## Model Building Process
 
@@ -69,10 +64,8 @@ Looking at the variables, we have a few initial thoughts. There is suspected col
 
 We create a correlation matrix to get a high level overview of the correlations between variables.
 
-### Removed a few of the columns        --- Comment
 ```{r}
-#corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])  ### explored removing the urban, west and central variables due to low variability for a correlation plot
-corr_crime = cor(crime[, c(-1,-2,-11)]) ## removed the county and year columns
+corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])  ### removing the urban, west and central variables due to low variability for a correlation plot
 corrplot(corr_crime, method = "ellipse")
 ```
 
@@ -115,8 +108,6 @@ ggplot(crime, aes(x=density, y =crmrte)) +
 
 Next, we notice from the scatterplot matrix that each wage variable seems to be highly correlated with each other, and there is some positive correlation with the crime rate. We investigate these closer to see any opportunities for transformation.
 
-### The outlier in wser affects the x-axis squashing the values for it to be accomodated. Run the same graph without wser, and it is clearer -- NK: Good point Brian, Added that context into our text below
-
 ```{r}
 crime_wage <- crime %>% 
   select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wser, wsta, wloc) %>% 
@@ -145,14 +136,15 @@ ggplot(crime_wage, aes(x=wkly_wage, y=crmrte)) +
 #+ theme(strip.text.x = element_text(margin = margin(2,0,2,0, "cm")))
 ```
 
-Many of the wage variables have a slight positive relationship with crime rate. The variables wtrd, wmfg, wfed, and (to a lesser degree) wsta and wloc seem to have a good amount of correlation with crime rate. As shown below, wser seems to have a very slight correlation with crime rate (log used because of the outlier)     
------ Comment NK: I liked this comment Brian made and it made it part of the main analysis!
+Many of the wage variables have a slight positive relationship with crime rate. The variables wtrd, wmfg, wfed, and (to a lesser degree) wsta and wloc seem to have a good amount of correlation with crime rate. As shown below, wser seems to have a very slight correlation with crime rate (log used because of the outlier)
 
 ```{r}
 ggplot(crime, aes(x=log(wser), y=crmrte)) + geom_point()
 ```
 
-These relationships explain the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims. 
+
+These relationships explain the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims, so areas with higher incomes would end up having higher crime rates. 
+
 
 The one point that stands out is the outlier in wser (service industry wage) when plotted against the crime rate. This reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
 
@@ -162,9 +154,6 @@ Taking a closer look at this outlier:
 crime_outlier <- crime %>% filter(wser>2000)
 head(crime_outlier)
 ```
-
-
-### Preparing to add something on the corelation of the wage variables, it may need further analysis -- Comment
 
 Interestingly, the tax revenue per capita is lower than what we would expect for such a supposedly affluent county. Further investigation is required here to better understand the exact job market of this population. It is likely that there are only 1 or 2 members of this county who have high paying jobs, driving up wser. In this dataset, we would hope to see a percentage breakdown of workers in each sector. This would allow us to weight each wage parameter accordingly and provide context as to how much of an influence we would expect a sector's wage to have on its crime rate.
 
@@ -257,7 +246,6 @@ crime_outlier2 <- crime %>% filter(polpc>0.0075)
 head(crime_outlier2)
 ```
 
-#### Added a fourth specification          -- Comment
 
 ### Bringing our analysis together
 
@@ -268,9 +256,6 @@ model3 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv +
                prbpris + avgsen + polpc + pctmin80 + log(wcon) + 
                log(wtuc) + log(wtrd) + log(wfir) + log(wser) + log(wmfg) + 
                log(wfed) + log(wsta) + log(wloc) + mix, data = crime)
-
-#### Fourth specification that uses a few of the wage variables that were highly correlated with crime rate
-model4 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + polpc + pctmin80 + log(wtrd) +log(wmfg), data = crime)
 ```
 
 # The Regression Table
@@ -278,38 +263,59 @@ model4 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + polpc + pct
 crm rate as a function of Density, all the wages, probability of arrest, pct young male
 
 ```{r, results="asis"}
-stargazer(model1,model2,model3, model4
-          , type ="text"
+stargazer(model1,model2,model3
+          , type ="latex"
           , column.labels   = c("Specification 1", "Specification 2 ", "Specification 3", "Specification 4")
           , report = "vc", title = "Model Summaries"
           , keep.stat = c("rsq","adj.rsq")
           , omit.table.layout = "n")
 ```
 
+### Comparing Specifications
+
+We use the Akaike Information Criterion (AIC) and the Bayesian Information Criterion (BIC) on each model.
+
+Model Specification 1
+```{r}
+AIC(model1)
+BIC(model1)
+```
+
+Model Specification 2 
+```{r}
+AIC(model2)
+BIC(model2)
+```
+
+Model Specification 3
+```{r}
+AIC(model3)
+BIC(model3)
+```
+It is clear from the results that the first model has the best balance between parsimony and explaining the variation in the outcome variable. However it is interesting to note that both the AIC and BIC point are lower for the third specification that contains nearly all the variables than for the second specification that seems to be more parsimonious and hence could have been expected to be a better model.
+
 # The Omitted Variables Discussion
 
 There are several omittied variables that would be valuable in conducting this analysis:
 
-1. Severity of crime. Crimes can vary from being petty (jaywalking or parking in a no parking zone) to severe crimes that do warrant arrest, conviction and prison sentences (kidnapping, thefts, sexual violence). Having a parameter that indicates the severity of the crime would help differentiate the varying levels of crime and focus analysis on reducing the likelihood of harsher crimes.
+1. Severity of crime. Crimes can vary from being petty (jaywalking or parking in a no parking zone) to severe crimes that do warrant arrest, conviction and prison sentences (kidnapping, thefts, sexual violence). Having a parameter that indicates the severity of the crime would help differentiate the varying levels of crime and focus analysis on reducing the likelihood of harsher crimes. The crime severity would be positively correlated with the crime rate and the probability of conviction but negatively correlated with the probability of arrest and the average sentence. This may lead to a negative coefficient because of the higher magnititude of the coefficient for the probability of arrest.
 
-2. Income gap. There are several variables that point to the affluence of a region, but we are interested in seeing the percentage of upper/middle class individuals compared to percentage of lower class. We predict that the difference in these percents would be a better indicator of crime rate. Currently, we only have the wage within each sector (it is unclear whether this wage is a median or a mean or some other aggregated measure). There also could be omitted sectors, and we don't know the relative proportion of individuals in each sector
+2. Income gap. There are several variables that point to the affluence of a region, but we are interested in seeing the percentage of upper/middle class individuals compared to percentage of lower class. We predict that the difference in these percents would be a better indicator of crime rate. Currently, we only have the wage within each sector (it is unclear whether this wage is a median or a mean or some other aggregated measure). There also could be omitted sectors, and we don't know the relative proportion of individuals in each sector. The size of the income gap may be positively correlated with the crime rate as well as the tax revenue and wage variables for high paying sectors like service while being negatively correlated with the wage variables for low paying sectors like manufacturing. As such the size of the income gap is likely to be have a positive coefficient.
 
 ### Added three omitted variables, read through           -Comment NK: These look great Brian!
-3.Police bias. Bias among police officers in certain areas may contribute to the crime rate because of spurious arrests and convictions. This may be difficult to measure directly
+3.Police bias. Bias among police officers in certain areas may contribute to the crime rate because of spurious arrests and convictions. This may be difficult to measure directly. We would expect police bias to be positively correlated with the probability of arrests and to a lesser extent the probability of convictions. It would also be positively correlated with the crime rate leading to the coefficient being positive.
 
-4. Crime rate in neighbouring counties. Proximity to other areas where crime is high may have an influence on the crime rate in a particular county due to spillovers of activity.
+4. Crime rate in neighbouring counties. Proximity to other areas where crime is high may have an influence on the crime rate in a particular county due to spillovers of activity. This variable may be correlated with other variables like the probability of convictions and probability of arrests as well as the outcome variable, crime rate. We would as a result expect the coefficient of police bias to be positive.
 
-5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure)
+5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure). This would likely be positively correlated with the density and tax per capita variables as well as the wage variables and the crime rate variable.  The sign of the coefficient for this variable would be expected to be positive
 
-# Conclusion     
------Comment NK: Added this in
 
 ## Comments on the Modeling Process
-Between Specification 1 and 2, we observed an increase in the adjusted R squared value, implying that the robustness of the model did indeed increase with the addition of the prbconv, polpc, and pctmin80 variables. Looking between the second and third specification, all of the variables in the second specification more or less retained their coefficient value, suggesting that the variables in specification 2 are indeed the ones we should be focusing on. 
+Between Specification 1 and 2, we observed an increase in the adjusted R squared value, implying that the robustness of the model did indeed increase with the addition of the prbconv, polpc, and pctmin80 variables. Looking between the second and third specification, all of the variables in the second specification more or less retained their coefficient value, suggesting that the variables in specification 2 are indeed the ones we should be focusing on, hwowever the AIC and BIC scores for the third specification were better than that for the second specification which is an indication that a reasonable amount of the variation is explained by the wage variables that were left out of the second model specification.
 
-There are a number of omitted variables, discussed above, that have are suspected to have an impact on the crime rate, or that we suspect are highly correlated with the variables available in the dataset. 
+There are a number of omitted variables, discussed above, that are suspected to have an impact on the crime rate, or that we suspect are highly correlated with the variables available in the dataset. 
 
-Secondly there are confounding factors we must consider. We noticed that crime rate is going up due to police presence, which may seem counterintuitive. However, more police may lead to more reports of crime, so there are a large number of unreported crimes that are potentially being missed here. This leads us to question whether the crmrte variable is really a true represntation of how safe a neighborhood is, as in some areas most crimes can go unreported either due to a lack of trust in law enforcement, or simply because victims do not want to spend the energy to report a crime. We must also consider the possibility that there is a higher police presence in some variables because there is a high crime rate. This would actually suggest that polpc is an effect of crmrate than the other way round. If this is true, then we would actually advise removing the polpc variable from our model specifications.
+Secondly there are confounding factors we must consider. We noticed that crime rate is going up due to police presence, which may seem counterintuitive. However, more police may lead to more reports of crime, so there are a large number of unreported crimes that are potentially being missed here. This leads us to question whether the crmrte variable is really a true representation of how safe a neighborhood is, as, in some areas most crimes can go unreported either due to a lack of trust in law enforcement, or simply because victims do not want to spend the energy to report a crime. We must also consider the possibility that there is a higher police presence in some variables because there is a high crime rate. This would actually suggest that polpc is an effect of crmrate than the other way round. If this is true, then we would actually advise removing the polpc variable from our model specifications.
 
 Also, there are a variety of economic variables that could be highly correlated with another economic parameter that is causal to crmrate. Specifically, we would suggest exploring income gaps and unemployment data in counties, as these have a clearer causal mechanism to crime rate.
 
