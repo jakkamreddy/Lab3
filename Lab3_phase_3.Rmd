@@ -36,11 +36,12 @@ The motivation for this analysis is to determine the factors that lead to crime 
 crime = read.csv("crime_v2.csv", header = TRUE)
 str(crime)
 ```
-Here, we see something interesting. prbconv is a factor due to a rogue ` character being added to the bottom of the file. When we view the dataframe, we actually see that this rogue tick mark has also introduced 6 null values in the file. We take steps to remove these records from the file to clean our dataset. 
+Here, we see something interesting. prbconv is a factor due to a rogue ` character being added to the bottom of the file. When we view the dataframe, we actually see that this rogue tick mark has also introduced 6 null values in the file. We take steps to remove these records from the file to clean our dataset.  We will remove the duplicate value for county 193
 
 ```{r}
 crime <- crime[!is.na(as.numeric(as.character(crime$prbconv))),]
 crime$prbconv <- as.numeric(as.character(crime$prbconv))
+crime = crime[!duplicated(crime), ]
 str(crime)
 summary(crime)
 ```
@@ -270,6 +271,8 @@ stargazer(model1,model2,model3
           , column.labels   = c("Specification 1", "Specification 2 ", "Specification 3", "Specification 4")
           , report = "vc*p", title = "Model Summaries"
           , keep.stat = c("rsq","adj.rsq")
+          ,font.size = "small"
+          ,single.row = TRUE
           , omit.table.layout = "n",
           add.lines=list(c("AIC", round(AIC(model1),1), round(AIC(model2),1), round(AIC(model3),1)),
           c("BIC", round(BIC(model1),1), round(BIC(model2),1), round(BIC(model3),1))))
