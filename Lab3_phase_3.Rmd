@@ -24,6 +24,8 @@ library(zoo)
 library(corrplot)
 library(stargazer)
 library(gvlma)
+library(sandwich)
+library(lmtest)
 ```
 
 ## Introduction
@@ -276,31 +278,30 @@ stargazer(model1,model2,model3
           , omit.table.layout = "n",
           add.lines=list(c("AIC", round(AIC(model1),1), round(AIC(model2),1), round(AIC(model3),1)),
           c("BIC", round(BIC(model1),1), round(BIC(model2),1), round(BIC(model3),1))))
+
+# Below is a version of the stargazer table that has heteroskedastic-robust standard errors. This follows the example of how to create a stargazer table with standard errors (Async lecture 12.18)
+se.model1 = sqrt(diag(vcovHC(model1)))
+se.model2 = sqrt(diag(vcovHC(model2)))
+se.model3 = sqrt(diag(vcovHC(model3)))
+
+stargazer(model1,model2,model3
+          , type = "latex"
+          , column.labels   = c("Specification 1", "Specification 2 ", "Specification 3", "Specification 4")
+          , title = "Model Summaries"
+          , omit.stat="f"
+          , keep.stat = c("rsq","adj.rsq")
+          , se = list(se.model1,se.model2,se.model3)
+          , star.cutoffs = c(0.05,0.01,0.001)
+          , font.size = "small"
+          , single.row = TRUE
+          , omit.table.layout = "n"
+          , add.lines=list(c("AIC", round(AIC(model1),1), round(AIC(model2),1), round(AIC(model3),1)),
+          c("BIC", round(BIC(model1),1), round(BIC(model2),1), round(BIC(model3),1))))
 ```
 
-### Comparing Specifications
-
-We use the Akaike Information Criterion (AIC) and the Bayesian Information Criterion (BIC) on each model.
-
-Model Specification 1
-```{r}
-AIC(model1)
-BIC(model1)
-```
-
-Model Specification 2 
-```{r}
-AIC(model2)
-BIC(model2)
-```
-
-Model Specification 3
-```{r}
-AIC(model3)
-BIC(model3)
-```
 It is clear from the results that the second model has the best balance between parsimony and explaining the variation in the outcome variable. However it is interesting to note that both the AIC and BIC point are lower for the third specification that contains nearly all the variables than for the second specification that seems to be more parsimonious and hence could have been expected to be a better model. This also applies for the adjusted R squared value.
 
+## Add discussion of practical vs statistical significance
 
 ## Checking for CLM assumptions
 
@@ -335,17 +336,38 @@ vif(model2)
 We notice that none of the values are over 4, so we are safe to say that there is no multicolinearity.
 
 
-(4) Heteroskedasticity
+(4) Zero Conditional Mean
 Lets start looking at the diagnostic plots to talk about the rest of the assumptions. 
 ```{r}
-plot(model2)
+plot(model2, which = 1)
 ```
 
-From the residual vs the fitted plot, we see that we have violated the assumptions of zero conditional mean. This means that the coefficients are biased. As we will be discussing in the omitted variables section, there are quite a few variables  but none of them seem to be highly correlated to the independent variables that we are using in this model. So, we can assume exogenity.
+From the residual vs the fitted plot, we see that we have violated the assumptions of zero conditional mean, as values on the left hand side of the plot appear to be higher than those on the right. This means that the coefficients are biased. As we will be discussing in the omitted variables section, there are quite a few variables  but none of them seem to be highly correlated to the independent variables that we are using in this model. So, we can assume exogenity.
+
 This will enable use to provide causal inferences from the analysis.
 
-(5) Normality of Error 
-When we look at the Q-Q plot, we notice that except for a few points most of the data lies close to the line which ensures that we have a normal error distribution.
+(5) Homoskedasticity
+
+```{r}
+plot(model2, which = 3)
+```
+
+Here we examine the spread of the residuals from the residuals vs fitted plot as well as the straightness of the mean values of the scale-location plot. From the residuals vs fitted plot, the variance of residuals seems to be fairly even across the fitted values. Looking at the scale-location plot, there is a slight dip in the plot in the center left region of the graph, however this could be attributed to the higher density of points at this region. In either case, we should consider using at the standard errors robust to heteroskedasticity as we cannot make a confident assumption of homoskedasticity
+
+```{r}
+coeftest(model2, vcov = vcovHC)
+```
+
+From the above, density, the probability of punishment, and percent minority seem to be the strongest indicators for crime rate. This is followed by the police per capita (which either may be a result of crime rate or a deterrent of crime, so we cannot confidently use it as a predictor variable), and the percentage of young males.
+
+(6) Normality of Errors
+
+```{r}
+plot(model2, which = 2)
+hist(model2$residuals, main = "Histogram of Residuals for Model2", xlab = "Residuals")
+```
+
+When we look at the Q-Q plot, we notice that except for a few points most of the data lies close to the line which ensures that we have a normal error distribution. Additionally, by plotting the residuals above, we see that this distribution looks fairly normal.
 
 The scale-location plot shows the heteroskedastic as we see that there are outliers within the data set.  Another way for checking for heteroskedasticity is by looking at the variance. That can be checked as shown below
 ```{r}
@@ -365,11 +387,15 @@ We can look at the diagnostic plots for other models as well:
 
 ```{r}
 plot(model1, sub.caption  = "Model1 Plots", cex.caption = 1)
+```
+
+Interestingly, the residuals vs fitted plot for Model1 is the flattest, however it is more heteroskedastic. The residuals seem to have a similar degree of normality as Model specfication 2. Even if the Adjusted R squared is lower for this plot than for Model2, it may be worth considering that Model 1 is a better predictor once we use heteroskedastic-robust standard errors to assess the model.
+
+```{r}
 plot(model3, sub.caption  = "Model1 Plots", cex.caption = 1)
 ```
 
-
-## Comment - Should we add this (needs gvlma package)
+## Comment - Should we add this (needs gvlma package) NK: my only hesitation is that I believe this isn't covered in our course and the instructions tell us to not use anything outside of what we've learned in the course.
 Another way to compare all the assumptions is through gvlma function.
 ```{r}
 model2_gvlma <- gvlma(model2)
@@ -391,10 +417,9 @@ There are several omittied variables that would be valuable in conducting this a
 
 5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure). This would likely be positively correlated with the density and tax per capita variables as well as the wage variables and the crime rate variable.  The sign of the coefficient for this variable would be expected to be positive
 
-## Please check
-6. Unemployment rate- We have the wage level within each sector, but we don't have the unemployment rate within each county. An unemployed person has a higher propensity to commit a crime than someone who is working. So a higher unemployment rate in a county would  increase the crime rate in the county.
+6. Unemployment rate- We have the wage level within each sector, but we don't have the unemployment rate within each county. An unemployed person has a higher propensity to commit a crime than someone who is working. So a higher unemployment rate in a county would  increase the crime rate in the county. We expect that this has a positive bias on the coefficients with a positive slope.
 
-7. Family Composition. Having a variable which defines the degree of cohesiveness or divorces will play an important role in the crime rate. People with a less than healthy childhood has a higher chance of commiting crime than a person who had a normal childhood. The higher the family composition, the lower the crime rate which would imply that we will have a negative coefficient
+7. Family Composition. Having a variable which defines the degree of cohesiveness or divorces will play an important role in the crime rate. People with a less than healthy childhood has a higher chance of commiting crime than a person who had a normal childhood. The higher the family composition, the lower the crime rate which would imply that we will have a negative coefficient. We expect there to be no correlation between the family composition and the other variables currently in the model. Therefore, it is likely absorbed by the error terms.
 
 8. Poverty Level - In our current model taxpc acts as a proxy for the poverty level, but the challenge with this is that people within or close to the poverty level do not contribute to taxes and there might be outliers with higher income that can skew the data substantially.
 
@@ -413,3 +438,16 @@ Also, there are a variety of economic variables that could be highly correlated 
 In terms of actionable steps for the political campaign, we recommend looking at the outputs of the regression model with a more critical eye. From first glance, it looks like reducing the number of police, lowering taxes, and forcing young males out of counties would be the solution. These are neither advised nor are they ethical in some cases. Instead, we recommend looking at why these explanatory variables are related to crime rate. 
 
 Some actionable steps we can recommend are creating programs to keep young men employed and off the streets, programs to improve the relationship between civilians and police forces, and making the penalties for crimes known as to deter crime from happening in the first place. Results from a future analysis that looks at income gaps explicitly would also inform which groups of individuals require a wage increase or better employement opportunities (if any).
+
+# Appendix
+
+We found the CLM assumptions to reflect well on the models built so far. For all 3 specifications, the QQ plots show residuals are fairly close to normal. The thickness of the band for the Residuals vs Fitted plot for Specification 2 is fairly even, suggesting that there is even variance across all fitted values, suggesting homoskedasticity. In the Scale-Location plot there is a slight dip in the middle left portion of the graph, though this can be attributed to the larger number of points there.
+
+Still, we do see from the histogram of crmrte that this variable is skewed right. We try modifying Specification 2 by taking the log of crime rate and plot graphs to comment on how this holds up as a model for inference using the 6 CLM assumptions:
+
+```{r}
+model4 <- lm(log(crmrte) ~ taxpc + density + pctymle + prbarr + prbconv + polpc + pctmin80, data = crime)
+plot(model4)
+```
+
+The residuals vs fitted plot appears to peak in the center of the graph, so we violate the zero conditional mean condition (CLM 4). The normal QQ plot also deviates from normality more than model2, and the line in the scale-location graph is less flat, indicating a greater degree of heteroskedasticity. Overall, we can feel confident sticking to the untransformed crmrte in our preferred specifications.
