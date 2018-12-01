@@ -194,7 +194,7 @@ ggplot(crime, aes(x=pctmin80, y =taxpc)) +
   xlab("Percent Minority") + 
   ylab("Tax Per Capita")
 ```
-Contrary to the above discussion, Tax Revenue per Capita does not seem to be related to the percentage of minorities in a population. 
+Contrary to the above discussion, Tax Revenue per Capita does not seem to be related to the percentage of minorities in a population. Therefore these variables are likely not multicollinear and can exist within the same specification.
 
 Now looking at percent young male. This variable is of interest as the perpetrators of crime are often thought to come from this demographic group.
 
@@ -205,6 +205,8 @@ ggplot(crime, aes(x = pctymle, y = crmrte)) +
   xlab("Percent Young Male") + 
   ylab("Crime Rate")
 ```
+
+There does appear to be some positive correlation between percent young male and crime rate, so we will include this in our model specifications.
 
 ### The influence of fear - probability of punishment
 
@@ -244,7 +246,7 @@ ggplot(crime, aes(x = polpc, y = crmrte)) +
   xlab("Police per Capita") + 
   ylab("Crime Rate")
 ```
-From above, the more police there are the more crime there is, with the exception of the outlier at the bottom right, reflecting an area with high police per capita and low crime. This is the same point as the outlier of the previous graph. Therefore, this one county has a High number of Police with a high likelihood of arreset, and a low crime rate. This likely is an area that is actively cracking down on crime. Overall though, we cannot make any conclusions on whether police presence reduces crime, or whether crime increases police presence. Therefore, this variable will likely not be included as part of our first model specification.
+From above, the more police there are the more crime there is, with the exception of the outlier at the bottom right, reflecting an area with high police per capita and low crime. This is the same point as the outlier of the previous graph. Therefore, this one county has a High number of Police with a high likelihood of arreset, and a low crime rate. This likely is an area that is actively cracking down on crime. Overall though, we cannot make any conclusions on whether police presence reduces crime, or whether crime increases police presence. Therefore, this variable will likely not be included as part of our first model specification, but we will consider it for our other models.
 
 ```{r}
 crime_outlier2 <- crime %>% filter(polpc>0.0075)
@@ -329,15 +331,16 @@ corrplot(corr_mod2, method =c("number"))
 
 From the above correlation matrix we gather that none of the variables have a correlation value of more than 0.43. We can assume that we have no multicolinearlity. 
 
-Another way to look at this, is by looking at the Variance Inflation factors.
+Another way to look at this is by looking at the Variance Inflation factors.
 ```{r}
 vif(model2)
 ```
-We notice that none of the values are over 4, so we are safe to say that there is no multicolinearity.
+Since none of the values are over 4, we are safe to say that there is no strong evidence of multicolinearity.
 
 
 (4) Zero Conditional Mean
-Lets start looking at the diagnostic plots to talk about the rest of the assumptions. 
+
+Let's start looking at the diagnostic plots to talk about the rest of the assumptions. 
 ```{r}
 plot(model2, which = 1)
 ```
