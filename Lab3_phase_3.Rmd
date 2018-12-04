@@ -258,7 +258,7 @@ head(crime_outlier2)
 
 ```{r}
 model1 <- lm(crmrte ~ taxpc + density + pctymle + prbarr, data = crime)
-model2 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + polpc + pctmin80, data = crime)
+model2 <- lm(crmrte ~ taxpc + density + pctymle + prbarr +polpc + prbconv + pctmin80, data = crime)
 model3 <- lm(crmrte ~ taxpc + density + pctymle + prbarr + prbconv + 
                prbpris + avgsen + polpc + pctmin80 + log(wcon) + 
                log(wtuc) + log(wtrd) + log(wfir) + log(wser) + log(wmfg) + 
@@ -303,7 +303,18 @@ stargazer(model1,model2,model3
 
 It is clear from the results that the second model has the best balance between parsimony and explaining the variation in the outcome variable. However it is interesting to note that both the AIC and BIC point are lower for the third specification that contains nearly all the variables than for the second specification that seems to be more parsimonious and hence could have been expected to be a better model. This also applies for the adjusted R squared value.
 
-## Add discussion of practical vs statistical significance
+
+### Discussing Statistical and Practical Significance
+
+In the first specification we see that density is statistically significant even at the 0.001 level. Across the three models, density remains significant and has a relatively consistent coefficient. In specification 1, this translates to each extra person per square mile accounting for 0.007 more crimes per person in an area. Given that the crime rate has a median of only about 0.03, this is only slightly practically significant. This could be interpreted as higher densitiy areas having a slighlty higher chance of experiencing increased crime rate.
+
+The percentage of young males is also statistically significant at the 0.05 in specification 1, and is still significant in the second (at the 0.01 level) and third (at the 0.05 level) models. For the first specification, an increase of 1 percent in the number of males is associated with an increase of 0.179 units of crime rate, which is very practically significant due to the small values for the crime rate. This implies a high percentage of young males(as determined by the data collectors) could be a major driver of crime rate.
+
+The probability of arrest is another variable in the first specification that is statistically significant. This is statistically significant at the 0.05 level for soecification one and at the 0.001 level for specifications two and three. The probability of arrest is asoociated with a decrease in the crime rate, particularly a decrease of 0.02 in the first model. Again given the small values of the crime rate, this is a practically significant amount. It is likely that a higher chance of arrest deters would-be criminals from engaging in criminal activity.
+
+The police per capita, included in specifications two and three is also statistically significant at the 0.005 level for the second model and at 0.01 in the third model. It chould be noted however that the large coefficient for this variable is due to the fact the values in this variable are really small with a median of 0.014897 and a maximum of 0.090543. This variable also has high standard errors compared with all the other variables. With this in mind, an increase of 1 in the police per capita is associated with an increase of about 6 crimes commited per person. However, the police per capita variable is also likely an outcome variable as well. Crime rate is likely affects the police per capita in area. With all these in mind, we do not consider the police per capita to be statiscally significant.
+
+The probability of conviction is would have been expected to contribute to the crime rate as it is another deterrent for individuals to engage in crime, however this is not statisitically significant in specification two, though it is significant in specfication three which includes all of the variables.
 
 ## Checking for CLM assumptions
 
