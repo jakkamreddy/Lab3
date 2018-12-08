@@ -36,18 +36,13 @@ The motivation for this analysis is to determine the factors that lead to crime 
 
 ```{r}
 crime = read.csv("crime_v2.csv", header = TRUE)
-str(crime)
+summary(crime)
 ```
-Here, we see something interesting. prbconv is a factor due to a rogue ` character being added to the bottom of the file. When we view the dataframe, we actually see that this rogue tick mark has also introduced 6 null values in the file. We take steps to remove these records from the file to clean our dataset.  We will remove the duplicate value for county 193
+Here, we see something interesting. prbconv is a factor due to a rogue ` character being added to the bottom of the file. When we view the dataframe, we actually see that this rogue tick mark has also introduced 6 null values in the file. We take steps to remove these records from the file to clean our dataset.  We will remove the duplicate value for county 193. De-duplicating was a step we noted from the EDA from Thomas Drage, Venkatesh Nagapudi, Miguel Jaime.
 
 ```{r}
 crime <- crime[!is.na(as.numeric(as.character(crime$prbconv))),]
 crime$prbconv <- as.numeric(as.character(crime$prbconv))
-str(crime)
-summary(crime)
-```
-We also check for duplicates and find one for county 193. We will remove this duplicate value.
-```{r}
 crime[duplicated(crime), ]
 crime = crime[!duplicated(crime), ]
 ```
@@ -68,7 +63,7 @@ Our data file is now clean and ready for further analysis.
 
 ## Exploratory Data Analysis
 
-```{r, fig.width=10,fig.height=11}
+```{r, fig.width=10,fig.height=11, message=FALSE}
 crime %>%
   keep(is.numeric) %>% 
   gather() %>% 
@@ -77,9 +72,9 @@ crime %>%
     geom_histogram()
 ```
 
-From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of prbconv, pctymyle and polpc that stand out as non-normal.  We now take a look at a scatterplot matrix to examine the bivariate relationships embedded within this dataset.
+From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of density and polpc that stand out as skewed right and may require a log transformation. Crime rate does appear to have some skew, so we will explore both log transformed and untransformed variations of our specificaitons. We now take a look at a scatterplot matrix to examine the bivariate relationships embedded within this dataset.
 
-Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribis, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
+Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribus, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
 
 We create a correlation matrix to get a high level overview of the correlations between variables.
 
@@ -114,7 +109,7 @@ crime %>%
 
 Urban areas tend to have higher densities, as expected. Thus, the density and urban variables are collinear. The other 2 variables don't show as strong of a relationship with density, and from the scatterplot matrix are not particularly correlated with crime rate. Thus, these variables will likely not be included in our first model specification. 
 
-Taking a closer look at crime rate against population density, this does look like a promising variable to include in the first specification.
+From the distribution of the variables above, we see that taking the log of the density would be advisable. Taking a closer look at crime rate against log(population density), this does look like a promising variable to include in all our specifications.
 ```{r}
 ggplot(crime, aes(x=density, y =crmrte)) + 
   geom_point() + 
@@ -137,7 +132,6 @@ ggplot(crime_wage, aes(x=wkly_wage, y=crmrte)) +
   ggtitle("Crime rate against wages across each sector") + 
   xlab("Weekly Wage") + 
   ylab("Crime Rate")
-#+ theme(strip.text.x = element_text(margin = margin(2,0,2,0, "cm")))
 ```
 
 Here, we see that the outlier in wser affects the x-axis is distorting the x axes for the other facets. We run the same graph without wser for a clearer visual of the other wage variables.
@@ -249,14 +243,14 @@ ggplot(crime, aes(x = polpc, y = prbarr)) +
   xlab("Police per Capita") + 
   ylab("Probability of Arrest")
 ```
-There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is espcially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. 
+There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is espcially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. This suggests that both variables can exist within our model
 
 We question if more police officers could be a deterrent of crime from occuring in the first place. Thus, let us plot police per capita against the crime rate. 
 
 ```{r}
-ggplot(crime, aes(x = polpc, y = crmrte)) + 
+ggplot(crime, aes(x = log(polpc), y = crmrte)) + 
   geom_point() + 
-  ggtitle("Crime Rate against Police Per Capita") + 
+  ggtitle("Crime Rate against Log(Police Per Capita)") + 
   xlab("Police per Capita") + 
   ylab("Crime Rate")
 ```
@@ -347,7 +341,7 @@ All the models above created using the log transformation of crime rate
 
 ```{r}
 log_model1 <- lm(log(crmrte) ~ taxpc + density + pctymle + prbarr, data = crime)
-log_model2 <- lm(log(crmrte) ~ taxpc + density + pctymle + prbarr +polpc + prbconv + pctmin80, data = crime)
+log_model2 <- lm(log(crmrte) ~ taxpc + density + pctymle + prbarr + polpc + prbconv + pctmin80, data = crime)
 log_model3 <- lm(log(crmrte) ~ taxpc + density + pctymle + prbarr + prbconv + 
                prbpris + avgsen + polpc + pctmin80 + log(wcon) + 
                log(wtuc) + log(wtrd) + log(wfir) + log(wser) + log(wmfg) + 
@@ -420,8 +414,7 @@ waldtest(model2, model3, vcov= vcovHC)
 
 Checking for joint significance in the log-log model
 ```{r}
-waldtest(log_model2, log_model3, vcov=vcovHC)
-
+# waldtest(log_model2, log_model3, vcov=vcovHC)
 ```
 
 
@@ -449,12 +442,7 @@ In this final case we are unable to reject the null hypothesis that the two prob
 ## Checking for CLM assumptions
 
 (1) Linear model assumption
- As we are not restricting the error term, we don't have to worry about the linear model assumption. Another way to look at this is by using the crPlots to check for non-linearlity.
-```{r}
-crPlots(model2)
-```
-We see that it is linear for most of the independent variables except taxpc.
-
+ As we are not restricting the error term, we don't have to worry about the linear model assumption. 
 
 (2) Random Sampling
 We have 91 of the 100 counties in Carolina. As of 2016, we have 80 rural counties, we expect that number to be higher in 1980s, so we can assume that we have a random sample.
