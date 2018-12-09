@@ -52,7 +52,7 @@ The minimum of the density variable is 0.00002. Let us examine the smallest valu
 head(sort(crime$density), 10)
 ```
 
-There is only one density value which is lower than is plausible (corresponds to an average of 2 people in a 10,000 square mile area ) and must be an erroneous value that we shall remove. (This was added after giving feedback on the draft by Thomas Drage, Venkatesh Nagapudi, Miguel Jaime)
+There is only one density value which is lower than is plausible (corresponds to an average of 2 people in a 10,000 square mile area) and must be an erroneous value that we shall remove. (This was added after giving feedback on the draft by Thomas Drage, Venkatesh Nagapudi, Miguel Jaime)
 ```{r}
 crime = crime[crime$density>0.0000203422, ]
 ```
@@ -73,17 +73,16 @@ crime %>%
 ```
 
 ### Initial Tranformation Decisions
-From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of crime rate, taxpc, density, percentage young male and polpc that stand out as skewed right and may require a log transformation. We now take a look at a scatterplot matrix to examine the bivariate relationships embedded within this dataset.
+From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of crime rate, taxpc, density, and polpc that stand out as skewed right and may require a log transformation. 
 
 ### Additional Comments on Correlation
-Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribus, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
-## Comments - If everything else is the same, if the density increaess, won't the tax per capita be the same as we are assuming the wage levels and everything will be the same?
+Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita.
 
 We create a correlation matrix to get a high level overview of the correlations between the untransformed variables.
 
 ```{r}
-corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])  ### removing the urban, west and central variables due to low variability for a correlation plot
-corrplot(corr_crime, method = "ellipse")
+corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])
+corrplot(corr_crime, method = "ellipse", type="lower")
 ```
 
 ### Examining density
@@ -110,7 +109,7 @@ crime %>%
     ggtitle("Non Central (0) vs Central Density (1)")
 ```
 
-Urban areas tend to have higher densities, as expected. Thus, the density and urban variables are collinear. The other 2 variables don't show as strong of a relationship with density, and from the scatterplot matrix are not particularly correlated with crime rate. Thus, these variables will likely not be included in our first model specification. 
+Urban areas tend to have higher densities, as expected. Thus, the density and urban variables are collinear. The other 2 variables don't show as strong of a relationship with density, and from the scatterplot matrix are not particularly correlated with crime rate. Thus, these indicator variables will likely not be included in our first model specification.
 
 From the distribution of the variables above, we see that taking the log of the density and crime rate would be advisable. Taking a closer look at log(crime rate) against log(density), this does look like a promising variable to include in all our specifications.
 ```{r}
@@ -126,7 +125,7 @@ ggplot(crime, aes(x=log(density), y = log(crmrte))) +
 
 Next, we notice from the scatterplot matrix that each wage variable seems to be highly correlated with each other, and there is some positive correlation with the crime rate. We investigate these closer to see any opportunities for transformation.
 
-```{r}
+```{r, fig.width=8,fig.height=9, message=FALSE}
 crime_wage <- crime %>% 
   select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wser, wsta, wloc) %>% 
   gather(sector, wkly_wage, -crmrte)
@@ -139,23 +138,9 @@ ggplot(crime_wage, aes(x=wkly_wage, y=log(crmrte))) +
   geom_smooth(method = 'lm')
 ```
 
-Here, we see that the outlier in wser affects the x-axis is distorting the x axes for the other facets. We run the same graph without wser for a clearer visual of the other wage variables.
-
-```{r}
-crime_wage <- crime %>% 
-  select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wsta, wloc) %>% 
-  gather(sector, wkly_wage, -crmrte)
-ggplot(crime_wage, aes(x=wkly_wage, y=log(crmrte))) + 
-  facet_wrap(~sector, scales = "free") + 
-  geom_point() + 
-  ggtitle("Wages across each sector against Log(Crime Rate) - without wser") + 
-  xlab("Weekly Wage") + 
-  ylab("Log(Crime Rate)") +
-  geom_smooth(method='lm')
-```
 Many of the wage variables have a slight positive relationship with log(crime rate). The variables wtrd, wmfg, wfed, and (to a lesser degree) wsta and wloc seem to have a good amount of correlation with crime rate. These relationships explain the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims, so areas with higher incomes would end up having higher crime rates. 
 
-In this view without the wser outlier, the spread of the wage variables is pretty even and does not warrant transformation for our specifications. We typically use log transform on an income variable when the range is large and the data is highly postively  skewed, we don't see that for  the variables. This outlier reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries, as shown by the wages in other sectors.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
+We notice that wser has a significant outlier but other than that the spread of the wage variables is pretty even and does not warrant transformation for our specifications. This outlier reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
 
 Taking a closer look at this outlier:
 
@@ -164,7 +149,7 @@ crime_outlier <- crime %>% filter(wser>2000)
 head(crime_outlier)
 ```
 
-Interestingly, the tax revenue per capita is lower than what we would expect for such a supposedly affluent county. Further investigation is required here to better understand the exact job market of this population. It is likely that there are only 1 or 2 members of this county who have high paying jobs, driving up wser. In this dataset, we would hope to see a percentage breakdown of workers in each sector. This would allow us to weight each wage parameter accordingly and provide context as to how much of an influence we would expect a sector's wage to have on its crime rate.
+Interestingly, the tax revenue per capita is lower than what we would expect for such a supposedly affluent county. Further investigation is required here to better understand the exact job market of this population. It is likely that there are only 1 or 2 members of this county who have extremely high paying jobs, driving up wser. In this dataset, we would hope to see a percentage breakdown of workers in each sector. This would allow us to weight each wage parameter accordingly and provide context as to how much of an influence we would expect a sector's wage to have on its crime rate.
 
 As mentioned above, we note that taxpc is related to the wages of workers in each county, as higher taxes are applied to individuals with a higher income. We notice this in the correlation matrix at the top of this report, where taxpc shows at least a light blue relationship with each of the wage variables individually (this is expected as we anticipate that taxpc is more tightly correlated with a linear combination of these variables). From the correlation matrix, we expect to see the same positive relationship between taxpc and crmrte. Taking a closer look at this relationship while taking the log of both variables due to their positive skew in the EDA distribution curves, we can verify that this relationship holds.
 
@@ -203,19 +188,19 @@ ggplot(crime, aes(x=pctmin80, y = log(crmrte))) +
 Now looking at percent young male. This variable is of interest as the perpetrators of crime are often thought to come from this demographic group.
 
 ```{r}
-ggplot(crime, aes(x = log(pctymle), y = log(crmrte))) + 
+ggplot(crime, aes(x = pctymle, y = log(crmrte))) + 
   geom_point() + 
-  ggtitle("Log(Crime Rate) against log(Percentage Young Males)") + 
-  xlab("log(Percent Young Male)") + 
+  ggtitle("Log(Crime Rate) against Percentage Young Males") + 
+  xlab("Percent Young Male") + 
   ylab("Log(Crime Rate)") + 
   geom_smooth(method='lm')
 ```
 
-There does appear to be some positive correlation between log(percent young male) and log(crime rate), so we will include this in our model specifications.
+There does appear to be some positive correlation between percent young male and log(crime rate), so we will include this in our model specifications.
 
 ### The influence of fear - probability of punishment
 
-Now looking at the probabilities associated with arrest, conviction and prison sentence. These 3 probabilites all illustrate the likelihood of being punished for a crime. Therefore, we expect that only one of these parameters is necessary to include in our model to avoid any confounding effects.
+Now looking at the probabilities associated with arrest, conviction and prison sentence. These 3 probabilites all illustrate the likelihood of being punished for a crime. Therefore, we expect that only one of these parameters is necessary to include in our first model to avoid any confounding effects. 
 
 ```{r}
 crime_prob_punishment <- crime %>% 
@@ -242,7 +227,7 @@ ggplot(crime, aes(x = log(polpc), y = prbarr)) +
   ylab("Probability of Arrest") +
   geom_smooth(method = 'lm')
 ```
-There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is espcially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. This suggests that both variables can exist within our model
+There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is especially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. This suggests that both variables can exist within our model
 
 We question if more police officers could be a deterrent of crime from occuring in the first place. Thus, let us plot the log transformed police per capita and crime rate. 
 
@@ -254,7 +239,7 @@ ggplot(crime, aes(x = log(polpc), y = log(crmrte))) +
   ylab("Log(Crime Rate)") +
   geom_smooth(method = 'lm')
 ```
-From above, the more police there are the more crime there is, with the exception of the outlier at the bottom right, reflecting an area with high police per capita and low crime. This is the same point as the outlier of the previous graph. Therefore, this one county has a High number of Police with a high likelihood of arreset, and a low crime rate. This likely is an area that is actively cracking down on crime. Overall though, we cannot make any conclusions on whether police presence reduces crime, or whether crime increases police presence, or whether police presence provokes criminals and incites crime. Therefore, this variable will likely not be included as part of our first model specification, but we will consider it for our other models.
+From above, the more police there are the more crime there is, with the exception of the outlier at the bottom right, reflecting an area with high police per capita and low crime. This is the same point as the outlier of the previous graph. Therefore, this one county has a high number of police with a high likelihood of arreset, and a low crime rate. This likely is an area that is actively cracking down on crime. Overall though, we cannot make any conclusions on whether police presence reduces crime, or whether crime increases police presence, or whether police presence provokes criminals and incites crime. Therefore, this variable will likely not be included as part of our first model specification, but we will consider it for our other models.
 
 ```{r}
 crime_outlier2 <- crime %>% filter(polpc>0.0075)
@@ -266,11 +251,11 @@ head(crime_outlier2)
 
 As we build our models, we shall create three main specifications. The first specification, model1 consists of the variables that are highly correlated with the log transformed crime rate variable only as per the preceding exploratory data analysis. This is the most parsimonious and consists of the tax per capita, density, percentage of young males and the probability of arrest.
 
-The second specification, model2 consists of the variables in the first specification plus those we think are likely to affect the crime rate as well as those that have some correlation with the variables. The variables added in this specification are the log transformed police per capita, probability of conviction, probability of arrest and the percentage of minorities.
+The second specification, model2 consists of the variables in the first specification plus those we think are likely to affect the crime rate as well as those that have some correlation with the target variable. The variables added in this specification are the log transformed police per capita, probability of conviction, probability of arrest and the percentage of minorities.
 
-The third specification contains all the variables in the dataset. To be noted is that we incorporate all the wage variables.
+The third specification contains all the appropriately transformed variables in the dataset. To be noted is that we incorporate all the wage variables.
 
-The fourth specification explores if there are any interraction effects between the variables depicting probabiltiy of punishment (arrest, conviction, sentence)
+An exploratory fourth specification investigates if there are any interaction effects between the variables depicting probabiltiy of punishment (arrest, conviction, sentence)
 
 ```{r}
 model1 <- lm(log(crmrte) ~ log(taxpc) + log(density) + pctymle + prbarr, data = crime)
@@ -290,7 +275,7 @@ model4 <- lm(log(crmrte) ~ log(taxpc) + log(density) + pctymle + prbarr + log(po
 
 # The Regression Table
 
-We generate a regression table displaying the 3 models side by side
+We generate a regression table displaying the 4 models side by side
 
 ```{r, results="asis"}
 se.model1 = sqrt(diag(vcovHC(model1)))
@@ -313,15 +298,15 @@ stargazer(model1,model2,model3, model4
           c("BIC", round(BIC(model1),1), round(BIC(model2),1), round(BIC(model3),1), round(BIC(model4),1))))
 ```
 
-It is clear from the results that the second model has the best balance between parsimony and explaining the variation in the outcome variable. Additionally, the interraction terms did not seem to benefit our model in Specifcation 4 as AIC and BIC increased, and adjusted R squared decreased.
+It is clear from the results that the second model has the best balance between parsimony and explaining the variation in the outcome variable. Additionally, the interaction terms did not seem to benefit our model in Specifcation 4 as AIC and BIC increased, and adjusted R squared decreased.Therefore we will no longer explore Specification 4.
 
 It is interesting to note that both the AIC and BIC point are lower for the third specification that contains nearly all the variables than for the second specification that seems to be more parsimonious and hence could have been expected to be a better model. This also applies for the adjusted R squared value.
 
 ### Discussing Statistical and Practical Significance
 
-Across the four models, log(density) remains stasticically significant and has a relatively consistent coefficient, suggesting a 0.27-0.37 * x% increase in crime with every x% increase in density. When put in these terms, the density term is practically signifcant.
+Across the four models, log(density) remains stasticically significant and has a relatively consistent coefficient, suggesting a 0.27-0.37 * x% increase in crime with every x% increase in density. When put in these terms, the density term is practically significant.
 
-The percentage of young males is statistically significant at the 0.05 in specification 1, and is not significant in the remaining models. This suggests that with the addition of variables between specificaiton 1 and 2, a true causal factor came into play and the effect of pctymle decreased. Thus, we don't take this to be a predictor of crime rate
+The percentage of young males is statistically significant at the 0.05 level in specification 1, and is not significant in the remaining models. This suggests that with the addition of variables between specifications 1 and 2, a true causal factor came into play and the effect of pctymle decreased. Thus, we don't take this to be a predictor of crime rate
 
 2 of the 3 probability of punishment factors (arrest and conviction) are significant in our preferred specification, Specification 2. This suggest when the probability of arrest goes up by 1, the crime rate drops 160% (of course, the probility of arrest will likely fluctuate in smaller ammounts, but still the degree of change would still be practically significant at these levels.) The same applies for the probability of conviction (a unit increase in prbconv relates to a 62% drop in crime rate). Overall, it is likely that a higher chance of arrest and conviction deters would-be criminals from engaging in criminal activity.
 
@@ -344,7 +329,7 @@ First we test the hypothesis that the probabibility of arrest and the probabilit
 ```{r}
 linearHypothesis(model2, c( "prbarr=prbconv"), vcov=vcovHC)
 ```
-The result of the F-test is statistically significant at the 0.001 level so we can reject the hypothesis that the two variables have the same coefficient. We then compare the probability of arrest with the probabibility of conviction.
+The result of the F-test is statistically significant at the 0.001 level so we can reject the hypothesis that the two variables have the same coefficient. Therefore there is evidence that we need to keep both of these viarables in our model. We then compare the probability of arrest with the probabibility of conviction.
 
 ```{r}
 linearHypothesis(model2, c( "prbarr=prbpris"), vcov=vcovHC)
@@ -366,14 +351,14 @@ We have 89 of the 100 counties in Carolina in our analysis sample population. As
 
 (3) Multicolinearlity
 
-We know that there isn't perfect multi colinearlity as R would throw an error saying it has encountered singularity. We have as part of our data analysis have identified few variables which are highly correlated and did not include them in the model.
+We know that there isn't perfect multi collinearity as R would throw an error saying it has encountered singularity. We have, as part of our data analysis, have identified few variables which are highly correlated and did not include them in the model.
  
 ```{r}
 corr_mod2 <- cor(crime[,c(4,5,6,8,9,10,14,25)])
-corrplot(corr_mod2, method =c("number"))
+corrplot(corr_mod2, method =c("number"), type="lower")
 ```
 
-From the above correlation matrix we gather that none of the untransformed explanatory variables have a correlation value of more than 0.41. We can assume that we have no multicolinearlity. 
+From the above correlation matrix that looks at the variables used in Specification 2, we gather that none of the untransformed explanatory variables have a correlation value of more than 0.41. We can assume that we have no multicolinearlity. 
 
 Another way to look at this is by looking at the Variance Inflation factors.
 ```{r}
@@ -426,7 +411,7 @@ When we look at the Q-Q plot, we notice that except for a few points toward the 
 plot(model2, which = 5)
 ```
 
-Also, we see observation 25 falls outside the Cook's distance line of 0.5 but within a Cook's distiance of 1. So, this could be an influencial outliers that we should be looking at. The main challenge with this observation is that tax per capita is way more than what we see with all the other observations.
+Also, we see observation 25 falls outside the Cook's distance line of 0.5 but within a Cook's distiance of 1. So, this could be an influencial outlier that we should be looking at. The main challenge with this observation is that tax per capita is way more than what we see with all the other observations.
 
 Another way to look at the outliers 
 ```{r}
@@ -455,19 +440,19 @@ There are several omittied variables that would be valuable in conducting this a
 
 2. Income gap. There are several variables that point to the affluence of a region, but we are interested in seeing the percentage of upper/middle class individuals compared to percentage of lower class. We predict that the difference in these percents would be a better indicator of crime rate. Currently, we only have the wage within each sector (it is unclear whether this wage is a median or a mean or some other aggregated measure). There also could be omitted sectors, and we don't know the relative proportion of individuals in each sector. The size of the income gap may be positively correlated with the crime rate as well as the tax revenue and wage variables for high paying sectors like service while being negatively correlated with the wage variables for low paying sectors like manufacturing. As such the size of the income gap is likely to be have a positive coefficient.
 
-3. Police bias. Bias among police officers in certain areas may contribute to the crime rate because of spurious arrests and convictions. This may be difficult to measure directly. We would expect police bias to be positively correlated with the probability of arrests and to a lesser extent the probability of convictions. It would also be positively correlated with the crime rate leading to the coefficient being positive.
+3. Police bias. Bias among police officers in certain areas may contribute to the crime rate because of spurious arrests and convictions. This may be difficult to measure directly. We would expect police bias to be positively correlated with the probability of arrests and to a lesser extent the probability of convictions. It would also be positively correlated with the crime rate leading to the coefficient being positive. This implies we have positive bias on the probability of arrests and convictions.
 
 4. Crime rate in neighboring counties. Proximity to other areas where crime is high may have an influence on the crime rate in a particular county due to spillovers of activity. This variable may be correlated with other variables like the probability of convictions and probability of arrests as well as the outcome variable, crime rate. We would as a result expect the coefficient of police bias to be positive.
 
-5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure). This would likely be positively correlated with the density and tax per capita variables as well as the wage variables and the crime rate variable.  The sign of the coefficient for this variable would be expected to be positive
+5. Size of the economy. The size of the economy for each county may be a factor. Explanations could be made for crime rate to be higher or lower in a given county depending on other counties. It would be intersting to see how the crime rate varies with the size of the economy (measured by GDP or similar measure). This would likely be positively correlated with the density and tax per capita variables as well as the wage variables and the crime rate variable.  The sign of the coefficient for this variable would be expected to be positive and skewed existing income-related variables upward.
 
-6. Unemployment rate- We have the wage level within each sector, but we don't have the unemployment rate within each county. An unemployed person has a higher propensity to commit a crime than someone who is working. So a higher unemployment rate in a county would  increase the crime rate in the county. We expect that this has a positive bias on the coefficients with a positive slope.
+6. Unemployment rate. We have the wage level within each sector, but we don't have the unemployment rate within each county. An unemployed person has a higher propensity to commit a crime than someone who is working. So a higher unemployment rate in a county would  increase the crime rate in the county. We expect that this has a positive bias on the coefficients with a positive slope.
 
 7. Family Composition. Having a variable which defines the degree of cohesiveness or divorces will play an important role in the crime rate. We predict that people with a less than healthy childhood have a higher chance of commiting crime than a person who had a normal childhood. The higher the family composition, the lower the crime rate which would imply that we will have a negative coefficient. We expect there to be no correlation between the family composition and the other variables currently in the model. Therefore, it is likely absorbed by the error terms.
 
-8. Poverty Level - In our current model taxpc acts as a proxy for the poverty level, but the challenge with this is that people within or close to the poverty level do not contribute to taxes and there might be outliers with higher income that can skew the data substantially.
+8. Poverty Level. In our current model taxpc acts as a proxy for the poverty level, but the challenge with this is that people within or close to the poverty level do not contribute to taxes and there might be outliers with higher income that can skew the data substantially.
 
-9. Repeat Crimes - It would be helpful to understand what percentage of the crimes are repeat crimes, this can help us to understand the importance of judicial system and see if there can be any policy decisions that can be made to reduce crime rate. Repeat crimes variable will probably have a positive bias on the coefficient of crime rate.
+9. Repeat Crimes - It would be helpful to understand what percentage of the crimes are repeat crimes, this can help us to understand the importance of judicial system and see if there can be any policy decisions that can be made to reduce crime rate. Repeat crimes variable will probably have a positive bias on the coefficient of crime rate. We don't believe that there is a strong correlation between repeat crimes and the other explanatory variables, so we believe this effect is absorbed by the error term.
 
 # Conclusion
 
@@ -476,7 +461,7 @@ Between Specifications 1, 2 and 3, we observed an increase in the adjusted R squ
 
 There are a number of omitted variables, discussed above, that are suspected to have an impact on the crime rate, or that we suspect are highly correlated with the variables available in the dataset. 
 
-Secondly there are confounding factors we must consider. We noticed that crime rate is going up due to police presence, which may seem counterintuitive. However, more police may lead to more reports of crime, so there are a large number of unreported crimes that are potentially being missed here. This leads us to question whether the crmrte variable is really a true representation of how safe a neighborhood is, as, in some areas most crimes can go unreported either due to a lack of trust in law enforcement, or simply because victims do not want to spend the energy to report a crime. We must also consider the possibility that there is a higher police presence in some variables because there is a high crime rate. This would actually suggest that polpc is an effect of crmrate than the other way round. If this is true, then we would actually advise removing the polpc variable from our model specifications.
+Additionally there are confounding factors we must consider. We noticed that crime rate is going up due to police presence, which may seem counterintuitive. However, more police may lead to more reports of crime, so there are a large number of unreported crimes that are potentially being missed here. This leads us to question whether the crmrte variable is really a true representation of how safe a neighborhood is, as, in some areas most crimes can go unreported either due to a lack of trust in law enforcement, or simply because victims do not want to spend the energy to report a crime. We must also consider the possibility that there is a higher police presence in some variables because there is a high crime rate. This would actually suggest that polpc is an effect of crmrate than the other way round. If this is true, then we would actually advise removing the polpc variable from our model specifications.
 
 Also, there are a variety of economic variables that could be highly correlated with another economic parameter that is causal to crmrate. Specifically, we would suggest exploring income gaps and unemployment data in counties, as these have a clearer causal mechanism to crime rate.
 
