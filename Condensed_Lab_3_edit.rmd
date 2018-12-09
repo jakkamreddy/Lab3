@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.width=7, fig.height=3.5, fig.align='center')
+knitr::opts_chunk$set(fig.width=7, fig.height=3.5, fig.align='center', warning=FALSE, message=FALSE)
 rm(list = ls())
 library(purrr)
 library(car)
@@ -52,7 +52,7 @@ The minimum of the density variable is 0.00002. Let us examine the smallest valu
 head(sort(crime$density), 10)
 ```
 
-There is only one density value which is lower than is plausible (corresponds to an average of 2 people in a 10,000 square mile area) and must be an erroneous value that we shall remove. (This was added after giving feedback on the draft by Thomas Drage, Venkatesh Nagapudi, Miguel Jaime)
+There is only one density value which is lower than is plausible (corresponds to an average of 2 people in a 10,000 square mile area ) and must be an erroneous value that we shall remove. (This was added after giving feedback on the draft by Thomas Drage, Venkatesh Nagapudi, Miguel Jaime)
 ```{r}
 crime = crime[crime$density>0.0000203422, ]
 ```
@@ -73,16 +73,17 @@ crime %>%
 ```
 
 ### Initial Tranformation Decisions
-From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of crime rate, taxpc, density and polpc that stand out as skewed right and may require a log transformation.
+From the above, the distribution of most of the numeric variables presented are approximately normal, with the exception of crime rate, taxpc, density, percentage young male and polpc that stand out as skewed right and may require a log transformation. We now take a look at a scatterplot matrix to examine the bivariate relationships embedded within this dataset.
 
 ### Additional Comments on Correlation
 Looking at the variables, we have a few initial thoughts. There is suspected collinearity between wage variables and tax revenue per capita. We also note that higher tax per capita allows counties to spend more money on police forces, possibly having an effect on the police per capita. Lastly, density could have a confounding effect on per capita variables. Assume we have 2 counties, ceteris paribus, differing only in population density. This means that the per capita measurements for the more densely populated county will be lower than the more sparsely populated county.
+## Comments - If everything else is the same, if the density increaess, won't the tax per capita be the same as we are assuming the wage levels and everything will be the same?
 
 We create a correlation matrix to get a high level overview of the correlations between the untransformed variables.
 
 ```{r}
 corr_crime = cor(crime[, c(-1,-2,-11,-12,-13)])  ### removing the urban, west and central variables due to low variability for a correlation plot
-corrplot(corr_crime, method = "ellipse", type="lower")
+corrplot(corr_crime, method = "ellipse")
 ```
 
 ### Examining density
@@ -117,28 +118,44 @@ ggplot(crime, aes(x=log(density), y = log(crmrte))) +
   geom_point() + 
   ggtitle("Log(Crime Rate) against Log(Population Density)") + 
   xlab("Density") + 
-  ylab("Crime Rate")
+  ylab("Crime Rate") +
+  geom_smooth(method = 'lm')
 ```
 
 ### Examining Income-related variables
 
 Next, we notice from the scatterplot matrix that each wage variable seems to be highly correlated with each other, and there is some positive correlation with the crime rate. We investigate these closer to see any opportunities for transformation.
 
-```{r, fig.width=8,fig.height=9, message=FALSE}
+```{r}
 crime_wage <- crime %>% 
   select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wser, wsta, wloc) %>% 
   gather(sector, wkly_wage, -crmrte)
 ggplot(crime_wage, aes(x=wkly_wage, y=log(crmrte))) + 
-  facet_wrap(~sector, scales="free") + 
+  facet_wrap(~sector, scales = "free") + 
   geom_point() + 
   ggtitle("Wages across each sector against Log(Crime Rate)") + 
   xlab("Weekly Wage") + 
-  ylab("Log(Crime Rate)")
+  ylab("Log(Crime Rate)") +
+  geom_smooth(method = 'lm')
 ```
 
+Here, we see that the outlier in wser affects the x-axis is distorting the x axes for the other facets. We run the same graph without wser for a clearer visual of the other wage variables.
+
+```{r}
+crime_wage <- crime %>% 
+  select(crmrte, wcon, wtuc, wtrd, wfir, wmfg, wfed, wsta, wloc) %>% 
+  gather(sector, wkly_wage, -crmrte)
+ggplot(crime_wage, aes(x=wkly_wage, y=log(crmrte))) + 
+  facet_wrap(~sector, scales = "free") + 
+  geom_point() + 
+  ggtitle("Wages across each sector against Log(Crime Rate) - without wser") + 
+  xlab("Weekly Wage") + 
+  ylab("Log(Crime Rate)") +
+  geom_smooth(method='lm')
+```
 Many of the wage variables have a slight positive relationship with log(crime rate). The variables wtrd, wmfg, wfed, and (to a lesser degree) wsta and wloc seem to have a good amount of correlation with crime rate. These relationships explain the phenomenon that more burglaries / thefts / kidnappings are likely to be targeted on wealthier victims, so areas with higher incomes would end up having higher crime rates. 
 
-We notice that wser has a significant outlier but other than that the spread of the wage variables is pretty even and does not warrant transformation for our specifications. This outlier reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
+In this view without the wser outlier, the spread of the wage variables is pretty even and does not warrant transformation for our specifications. We typically use log transform on an income variable when the range is large and the data is highly postively  skewed, we don't see that for  the variables. This outlier reflects a county that has a substantially high wage for service workers, and has a lower crime rate. This is likely an area that has been highly gentrified and is predominantly populated my members of in service roles (with fewer individuals who are in the other, lower paying industries, as shown by the wages in other sectors.) We don't believe that removing this outlier is valid, as this county could have another attribute that is worth investigating as a case study of a "successful" community with a low crime rate, and would be of high interest to our political campaign.
 
 Taking a closer look at this outlier:
 
@@ -152,11 +169,12 @@ Interestingly, the tax revenue per capita is lower than what we would expect for
 As mentioned above, we note that taxpc is related to the wages of workers in each county, as higher taxes are applied to individuals with a higher income. We notice this in the correlation matrix at the top of this report, where taxpc shows at least a light blue relationship with each of the wage variables individually (this is expected as we anticipate that taxpc is more tightly correlated with a linear combination of these variables). From the correlation matrix, we expect to see the same positive relationship between taxpc and crmrte. Taking a closer look at this relationship while taking the log of both variables due to their positive skew in the EDA distribution curves, we can verify that this relationship holds.
 
 ```{r}
-ggplot(crime, aes(x=taxpc, y = crmrte)) + 
+ggplot(crime, aes(x=log(taxpc), y = log(crmrte))) + 
   geom_point() + 
   ggtitle("Log(Crime Rate) against Log(Tax Per Capita)") + 
   xlab("Log(Tax Revenue per Capita)") + 
-  ylab("Log(Crime Rate)")
+  ylab("Log(Crime Rate)") +
+  geom_smooth(method = 'lm')
 ```
 
 ### Investigating demographic variables
@@ -168,21 +186,32 @@ ggplot(crime, aes(x=pctmin80, y = log(taxpc))) +
   geom_point() + 
   ggtitle("Percent Minority against Log(Tax Per Capita)") + 
   xlab("Percent Minority") + 
-  ylab("Log(Tax Per Capita)")
+  ylab("Log(Tax Per Capita)") +
+  geom_smooth(method='lm')
 ```
 Contrary to the above discussion, Tax Revenue per Capita does not seem to be related to the percentage of minorities in a population. Therefore these variables are likely not multicollinear and can exist within the same specification.
 
+Also, when we look at the relation between Percentage Minority and Crime rate, we some positive correlation between percentage Minority and Crime rate
+```{r}
+ggplot(crime, aes(x=pctmin80, y = log(crmrte))) + 
+  geom_point() + 
+  ggtitle("Percent Minority against Crime Rate") + 
+  xlab("Percent Minority") + 
+  ylab("Crime Rate") + 
+  geom_smooth(method='lm')
+```
 Now looking at percent young male. This variable is of interest as the perpetrators of crime are often thought to come from this demographic group.
 
 ```{r}
-ggplot(crime, aes(x = pctymle, y = log(crmrte))) + 
+ggplot(crime, aes(x = log(pctymle), y = log(crmrte))) + 
   geom_point() + 
-  ggtitle("Log(Crime Rate) against Percentage Young Males") + 
-  xlab("Percent Young Male") + 
-  ylab("Log(Crime Rate)")
+  ggtitle("Log(Crime Rate) against log(Percentage Young Males)") + 
+  xlab("log(Percent Young Male)") + 
+  ylab("Log(Crime Rate)") + 
+  geom_smooth(method='lm')
 ```
 
-There does appear to be some positive correlation between percent young male and log(crime rate), so we will include this in our model specifications.
+There does appear to be some positive correlation between log(percent young male) and log(crime rate), so we will include this in our model specifications.
 
 ### The influence of fear - probability of punishment
 
@@ -193,11 +222,12 @@ crime_prob_punishment <- crime %>%
   select(crmrte, prbarr, prbconv, prbpris) %>% 
   gather(punishment, probability, -crmrte)
 ggplot(crime_prob_punishment, aes(x=probability, y=log(crmrte))) + 
-  facet_wrap(~punishment, scales= "free") + 
+  facet_wrap(~punishment, scales = "free") + 
   geom_point() + 
   ggtitle("Crime rate against Probability of Arrest, Conviction, and Prison Sentence") + 
   xlab("Probability") + 
-  ylab("Log(Crime Rate)")
+  ylab("Log(Crime Rate)") +
+  geom_smooth(method = 'lm')
 ```
 
 As suggested by the correlation matrix and the analysis above, there is a negative relationship between the probability of arrest and conviction with crime rate. However, there seems to be no correlation between the probability of a prison sentence with crime rate.
@@ -209,9 +239,10 @@ ggplot(crime, aes(x = log(polpc), y = prbarr)) +
   geom_point() + 
   ggtitle("Police Presence's effect on the Probability of Arrest") + 
   xlab("Log(Police per Capita)") + 
-  ylab("Probability of Arrest")
+  ylab("Probability of Arrest") +
+  geom_smooth(method = 'lm')
 ```
-There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is especially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. This suggests that both variables can exist within our model
+There is one outlier where a very high police per capita leads to a high probability of arrest. This likely could be a neighborhood where crime is espcially high, so police are typically stationed here. This is not grounds to remove the outlier from our analysis, though we do note that, aside from this point, there doesn't seem to be a relationship between the police per capita and probability of arrest. This suggests that both variables can exist within our model
 
 We question if more police officers could be a deterrent of crime from occuring in the first place. Thus, let us plot the log transformed police per capita and crime rate. 
 
@@ -220,7 +251,8 @@ ggplot(crime, aes(x = log(polpc), y = log(crmrte))) +
   geom_point() + 
   ggtitle("Log(Crime Rate) against Log(Police Per Capita)") + 
   xlab("Log(Police per Capita)") + 
-  ylab("Log(Crime Rate)")
+  ylab("Log(Crime Rate)") +
+  geom_smooth(method = 'lm')
 ```
 From above, the more police there are the more crime there is, with the exception of the outlier at the bottom right, reflecting an area with high police per capita and low crime. This is the same point as the outlier of the previous graph. Therefore, this one county has a High number of Police with a high likelihood of arreset, and a low crime rate. This likely is an area that is actively cracking down on crime. Overall though, we cannot make any conclusions on whether police presence reduces crime, or whether crime increases police presence, or whether police presence provokes criminals and incites crime. Therefore, this variable will likely not be included as part of our first model specification, but we will consider it for our other models.
 
@@ -234,11 +266,11 @@ head(crime_outlier2)
 
 As we build our models, we shall create three main specifications. The first specification, model1 consists of the variables that are highly correlated with the log transformed crime rate variable only as per the preceding exploratory data analysis. This is the most parsimonious and consists of the tax per capita, density, percentage of young males and the probability of arrest.
 
-The second specification, model2 consists of the variables in the first specification plus those we think are likely to affect the crime rate as well as those that have some correlation with the target variable. The variables added in this specification are the log transformed police per capita, probability of conviction, probability of arrest and the percentage of minorities.
+The second specification, model2 consists of the variables in the first specification plus those we think are likely to affect the crime rate as well as those that have some correlation with the variables. The variables added in this specification are the log transformed police per capita, probability of conviction, probability of arrest and the percentage of minorities.
 
 The third specification contains all the variables in the dataset. To be noted is that we incorporate all the wage variables.
 
-The fourth specification explores if there are any interaction effects between the variables depicting probabiltiy of punishment (arrest, conviction, sentence)
+The fourth specification explores if there are any interraction effects between the variables depicting probabiltiy of punishment (arrest, conviction, sentence)
 
 ```{r}
 model1 <- lm(log(crmrte) ~ log(taxpc) + log(density) + pctymle + prbarr, data = crime)
@@ -289,7 +321,7 @@ It is interesting to note that both the AIC and BIC point are lower for the thir
 
 Across the four models, log(density) remains stasticically significant and has a relatively consistent coefficient, suggesting a 0.27-0.37 * x% increase in crime with every x% increase in density. When put in these terms, the density term is practically signifcant.
 
-The percentage of young males is statistically significant at the 0.05 level in specification 1, and is not significant in the remaining models. This suggests that with the addition of variables between specification 1 and 2, a true causal factor came into play and the effect of pctymle decreased. Thus, we don't take this to be a predictor of crime rate
+The percentage of young males is statistically significant at the 0.05 in specification 1, and is not significant in the remaining models. This suggests that with the addition of variables between specificaiton 1 and 2, a true causal factor came into play and the effect of pctymle decreased. Thus, we don't take this to be a predictor of crime rate
 
 2 of the 3 probability of punishment factors (arrest and conviction) are significant in our preferred specification, Specification 2. This suggest when the probability of arrest goes up by 1, the crime rate drops 160% (of course, the probility of arrest will likely fluctuate in smaller ammounts, but still the degree of change would still be practically significant at these levels.) The same applies for the probability of conviction (a unit increase in prbconv relates to a 62% drop in crime rate). Overall, it is likely that a higher chance of arrest and conviction deters would-be criminals from engaging in criminal activity.
 
@@ -330,15 +362,15 @@ In this final case we are unable to reject the null hypothesis that the two prob
  As we are not restricting the error term, we don't have to worry about the linear model assumption. 
 
 (2) Random Sampling
-We have 91 of the 100 counties in Carolina. As of 2016, we have 80 rural counties, we expect that number to be higher in 1980s, so we can assume that we have a random sample.
+We have 89 of the 100 counties in Carolina in our analysis sample population. As of 2016, we have 80 rural counties, we expect that number to be higher in 1980s, so we can assume that we have a random sample.
 
 (3) Multicolinearlity
 
-We know that there isn't perfect multi colinearlity as R would through an error saying it has encountered singularity. However, we can look at the correlation matrix to understand if there is a multi colinearity among the untransformed variables of specification 2.
+We know that there isn't perfect multi colinearlity as R would throw an error saying it has encountered singularity. We have as part of our data analysis have identified few variables which are highly correlated and did not include them in the model.
  
 ```{r}
 corr_mod2 <- cor(crime[,c(4,5,6,8,9,10,14,25)])
-corrplot(corr_mod2, method =c("number"), type="lower")
+corrplot(corr_mod2, method =c("number"))
 ```
 
 From the above correlation matrix we gather that none of the untransformed explanatory variables have a correlation value of more than 0.41. We can assume that we have no multicolinearlity. 
@@ -385,7 +417,7 @@ The above results indeed supports our inference that it is heteroskedastic as th
 
 ```{r}
 plot(model2, which = 2)
-hist(model2$residuals, main = "Histogram of Residuals for Model2", xlab = "Residuals")
+hist(model2$residuals, main = "Histogram of Residuals for Model2", xlab = "Residuals", breaks =15)
 ```
 
 When we look at the Q-Q plot, we notice that except for a few points toward the left hand side of the graph, most of the data lies close to the dotted line, ensuring we have a normal error distribution. Additionally, by plotting the residuals above, we see that this distribution looks fairly normal.
@@ -452,4 +484,4 @@ Also, there are a variety of economic variables that could be highly correlated 
 
 In terms of actionable steps for the political campaign, we recommend looking at the outputs of the regression model with a more critical eye. From first glance, it looks like reducing the number of police, arresting people for crimes more often, and forcing people out of counties would be the solution. These are neither advised nor are they ethical in some cases. Instead, we recommend looking at why these explanatory variables are related to crime rate. 
 
-Some actionable steps we can recommend are communicating the judicial penalties for severe crimes (as fear of punishment does seem to have an impact on crime rate) and programs to improve the relationship between civilians and police forces. Results from a future analysis that looks at income gaps explicitly would also inform which groups of individuals require a wage increase or better employement opportunities (if any). Additionally, to normalize for density, we recommend that future studies look at crime rate per capita.
+Some actionable steps we can recommend are communicating the judicial penalties for severe crimes (as fear of punishment does seem to have an impact on crime rate) and programs to improve the relationship between civilians and police forces. Setting up a rehabilitation programs rather than prison time for less certain crimes might help as stricter prison sentence has no statistical significance on the crime rate. Results from a future analysis that looks at income gaps explicitly would also inform which groups of individuals require a wage increase or better employement opportunities (if any). Additionally, to normalize for density, we recommend that future studies look at crime rate per capita.
