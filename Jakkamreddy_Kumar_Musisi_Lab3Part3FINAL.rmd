@@ -200,7 +200,7 @@ There does appear to be some positive correlation between percent young male and
 
 ### The influence of fear - probability of punishment
 
-Now looking at the probabilities associated with arrest, conviction and prison sentence. These 3 probabilites all illustrate the likelihood of being punished for a crime. Therefore, we expect that only one of these parameters is necessary to include in our first model to avoid any confounding effects. 
+Now looking at the probabilities associated with arrest, conviction and prison sentence. These 3 probabilites all illustrate the likelihood of being punished for a crime. Therefore, we will onlly use probability of arrest in the first specification and include the others in the remaining specifications.
 
 ```{r}
 crime_prob_punishment <- crime %>% 
