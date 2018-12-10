@@ -308,7 +308,7 @@ Across the four models, log(density) remains stasticically significant and has a
 
 The percentage of young males is statistically significant at the 0.05 level in specification 1, and is not significant in the remaining models. This suggests that with the addition of variables between specifications 1 and 2, a true causal factor came into play and the effect of pctymle decreased. Thus, we don't take this to be a predictor of crime rate
 
-2 of the 3 probability of punishment factors (arrest and conviction) are significant in our preferred specification, Specification 2. This suggest when the probability of arrest goes up by 1, the crime rate drops 160% (of course, the probility of arrest will likely fluctuate in smaller ammounts, but still the degree of change would still be practically significant at these levels.) The same applies for the probability of conviction (a unit increase in prbconv relates to a 62% drop in crime rate). Overall, it is likely that a higher chance of arrest and conviction deters would-be criminals from engaging in criminal activity.
+2 of the 3 probability of punishment factors (arrest and conviction) are significant in our preferred specification, Specification 2. This suggest when the probability of arrest goes up by 1, the crime rate drops 160% (of course, the probility of arrest will likely fluctuate in smaller amounts, but still the degree of change would still be practically significant at these levels.) The same applies for the probability of conviction (a unit increase in prbconv relates to a 62% drop in crime rate). Overall, it is likely that a higher chance of arrest and conviction deters would-be criminals from engaging in criminal activity.
 
 The police per capita, included in specifications two and three is also statistically significant at the 0.005 level for the second model and at 0.01 in the third model. However, the police per capita variable is likely both a predictor and an outcome variable as well. Crime rate is likely affects the police per capita in area, but police presence may either incite or deter criminals. With all these in mind, we do not consider the police per capita to be practically significant.
 
@@ -347,7 +347,7 @@ In this final case we are unable to reject the null hypothesis that the two prob
  As we are not restricting the error term, we don't have to worry about the linear model assumption. 
 
 (2) Random Sampling
-We have 89 of the 100 counties in Carolina in our analysis sample population. As of 2016, we have 80 rural counties, we expect that number to be higher in 1980s, so we can assume that we have a random sample.
+We have 89 of the 100 counties in North Carolina in our analysis sample population. As of 2016, we have 80 rural counties, we expect that number to be higher in 1980s, so we can assume that we have a random sample.
 
 (3) Multicolinearlity
 
